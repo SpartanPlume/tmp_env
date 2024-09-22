@@ -42,7 +42,17 @@ assert!(!current_dir.ends_with("src"));
 assert!(std::env::var("TEST_TMP_ENV").is_err());
 ```
 
-- To temporary create a directory
+- To temporary remove an environment variable:
+
+```rust
+{
+    let _tmp_env = tmp_env::remove_var("TEST_TMP_ENV");
+    assert!(std::env::var("TEST_TMP_ENV").is_err());
+}
+// The environment variable is now restored
+```
+
+- To temporary create a directory:
 
 ```rust
 {

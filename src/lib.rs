@@ -77,6 +77,26 @@ pub fn set_var<K: AsRef<OsStr>, V: AsRef<OsStr>>(key: K, value: V) -> CurrentEnv
     CurrentEnv(key.to_owned(), previous_val)
 }
 
+/// Removes the environment variable k for the currently running process.
+/// It returns a datastructure to keep the environment variable removed. When dropped the environment variable is restored
+/// ```
+/// std::env::set_var("TEST_TMP_ENV", "myvalue");
+/// assert_eq!(std::env::var("TEST_TMP_ENV"), Ok(String::from("myvalue")));
+/// {
+///     let _tmp_env = tmp_env::remove_var("TEST_TMP_ENV");
+///     assert!(std::env::var("TEST_TMP_ENV").is_err());
+/// }
+/// // Because guard is dropped then the environment variable is also automatically restored
+/// tmp_env::remove_var("TEST_TMP_ENV");
+/// assert_eq!(std::env::var("TEST_TMP_ENV"), Ok(String::from("myvalue")));
+/// ```
+pub fn remove_var<K: AsRef<OsStr>>(key: K) -> CurrentEnv {
+    let key = key.as_ref();
+    let previous_val = std::env::var(key).ok();
+    std::env::remove_var(key);
+    CurrentEnv(key.to_owned(), previous_val)
+}
+
 impl Drop for CurrentEnv {
     fn drop(&mut self) {
         match self.1.take() {
@@ -167,6 +187,25 @@ mod tests {
                 std::env::var("TEST_TMP_ENV_PREVIOUS"),
                 Ok(String::from("myvalue"))
             );
+        }
+        assert_eq!(
+            std::env::var("TEST_TMP_ENV_PREVIOUS"),
+            Ok(String::from("previous_value"))
+        );
+    }
+
+    #[test]
+    fn test_remove_env() {
+        let _tmp_env = remove_var("TEST_TMP_ENV");
+        assert!(std::env::var("TEST_TMP_ENV").is_err());
+    }
+
+    #[test]
+    fn test_remove_env_with_previous_value() {
+        std::env::set_var("TEST_TMP_ENV_PREVIOUS", "previous_value");
+        {
+            let _tmp_env = remove_var("TEST_TMP_ENV_PREVIOUS");
+            assert!(std::env::var("TEST_TMP_ENV_PREVIOUS").is_err());
         }
         assert_eq!(
             std::env::var("TEST_TMP_ENV_PREVIOUS"),
